@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#1a3a1a">
+<title>FamilyList</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+
+<!-- ── FIREBASE v9 COMPAT (CDN — no build step needed) ── -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
+<style>
+  :root {
+    --green:       #1a3a1a;
+    --green-mid:   #2d5a2d;
+    --green-light: #e8f0e8;
+    --green-accent:#4a8c4a;
+    --cream:       #f7f4ef;
+    --warm-white:  #fdfbf8;
+    --amber:       #d4820a;
+    --amber-light: #fef3e0;
+    --text:        #1a1a18;
+    --text-mid:    #5a5a54;
+    --text-light:  #9a9a90;
+    --border:      rgba(26,42,26,0.12);
+    --border-mid:  rgba(26,42,26,0.22);
+    --radius:      14px;
+    --radius-sm:   8px;
+    --red:         #e05555;
+    --red-light:   #fff0f0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; background: var(--cream); }
+  body { font-family: 'DM Sans', sans-serif; color: var(--text); }
+
+  .screen { display: none; height: 100%; flex-direction: column; overflow: hidden; }
+  .screen.active { display: flex; }
+
+  /* ── LOADING ── */
+  #screen-loading {
+    background: var(--green);
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .loading-logo { font-family: 'Fraunces', serif; font-size: 42px; color: var(--cream); }
+  .loading-spinner {
+    width: 28px; height: 28px;
+    border: 2px solid rgba(247,244,239,0.2);
+    border-top-color: var(--cream);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-msg { font-size: 13px; color: rgba(247,244,239,0.5); font-weight: 300; }
+
+  /* ── ONBOARDING ── */
+  #screen-onboard {
+    background: var(--green);
+    justify-content: center;
+    align-items: center;
+    padding: 40px 28px;
+    overflow-y: auto;
+  }
+  .onboard-mark {
+    font-family: 'Fraunces', serif;
+    font-size: 38px;
+    color: var(--cream);
+    margin-bottom: 4px;
+    text-align: center;
+  }
+  .onboard-tagline {
+    font-size: 14px;
+    color: rgba(247,244,239,0.55);
+    margin-bottom: 36px;
+    font-weight: 300;
+    text-align: center;
+    letter-spacing: 0.02em;
+  }
+  .onboard-card {
+    background: var(--warm-white);
+    border-radius: 20px;
+    padding: 26px 22px;
+    width: 100%;
+    max-width: 360px;
+  }
+  .tab-switcher {
+    display: flex;
+    gap: 4px;
+    background: var(--cream);
+    border-radius: 10px;
+    padding: 4px;
+    margin-bottom: 22px;
+  }
+  .tab-sw {
+    flex: 1;
+    height: 36px;
+    border: none;
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: transparent;
+    color: var(--text-mid);
+  }
+  .tab-sw.active { background: var(--warm-white); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .onboard-section { display: none; }
+  .onboard-section.active { display: block; }
+  .onboard-card h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: var(--text);
+  }
+  .onboard-card p { font-size: 13px; color: var(--text-mid); margin-bottom: 18px; line-height: 1.5; }
+  .field-label { font-size: 11px; font-weight: 500; color: var(--text-mid); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 5px; }
+  .field-input {
+    width: 100%; height: 46px;
+    border: 1px solid var(--border-mid);
+    border-radius: var(--radius-sm);
+    padding: 0 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px; color: var(--text);
+    background: var(--cream);
+    outline: none;
+    transition: border-color 0.15s;
+    margin-bottom: 12px;
+  }
+  .field-input:focus { border-color: var(--green-accent); }
+  .btn-primary {
+    width: 100%; height: 48px;
+    background: var(--green); color: var(--cream);
+    border: none; border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px; font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    margin-top: 4px;
+  }
+  .btn-primary:active { transform: scale(0.98); background: var(--green-mid); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .or-divider {
+    text-align: center; font-size: 12px; color: var(--text-light);
+    margin: 14px 0; position: relative;
+  }
+  .or-divider::before, .or-divider::after {
+    content: ''; position: absolute; top: 50%;
+    width: 42%; height: 1px; background: var(--border);
+  }
+  .or-divider::before { left: 0; }
+  .or-divider::after { right: 0; }
+  .btn-secondary {
+    width: 100%; height: 44px;
+    background: transparent; color: var(--green);
+    border: 1px solid var(--border-mid);
+    border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px; font-weight: 500;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    transition: background 0.15s;
+  }
+  .btn-secondary:active { background: var(--green-light); }
+  .invite-code-display {
+    background: var(--green-light);
+    border: 1px dashed var(--green-accent);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    text-align: center;
+    margin: 14px 0;
+  }
+  .invite-code-display .code {
+    font-family: 'Fraunces', serif;
+    font-size: 32px;
+    font-weight: 600;
+    color: var(--green);
+    letter-spacing: 0.15em;
+  }
+  .invite-code-display .code-hint { font-size: 11px; color: var(--text-mid); margin-top: 4px; }
+  .error-msg { font-size: 12px; color: var(--red); margin-top: 6px; display: none; }
+
+  /* ── APP HEADER ── */
+  .app-header {
+    background: var(--green);
+    padding: 50px 20px 14px;
+    flex-shrink: 0;
+  }
+  .header-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+  .family-name { font-family: 'Fraunces', serif; font-size: 24px; color: var(--cream); font-weight: 600; }
+  .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .members-row { display: flex; align-items: center; }
+  .member-av {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 500;
+    border: 2px solid var(--green);
+    margin-left: -6px;
+  }
+  .member-av:first-child { margin-left: 0; }
+  .synced-indicator { font-size: 11px; color: rgba(247,244,239,0.5); display: flex; align-items: center; gap: 4px; }
+  .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: #6fcf6f; }
+  .sync-dot.offline { background: #f0a020; }
+  .stats-row { display: flex; gap: 10px; align-items: center; }
+  .stat-pill {
+    background: rgba(247,244,239,0.1);
+    border-radius: 20px; padding: 4px 11px;
+    font-size: 12px; color: rgba(247,244,239,0.75); font-weight: 300;
+  }
+  .stat-pill strong { font-weight: 500; color: var(--cream); }
+  .invite-btn {
+    background: rgba(247,244,239,0.12);
+    border: 1px solid rgba(247,244,239,0.2);
+    border-radius: 20px; padding: 4px 11px;
+    font-size: 11px; color: rgba(247,244,239,0.8);
+    cursor: pointer; font-family: 'DM Sans', sans-serif;
+    display: flex; align-items: center; gap: 4px;
+    transition: background 0.15s;
+  }
+  .invite-btn:active { background: rgba(247,244,239,0.22); }
+
+  /* ── FILTER TABS ── */
+  .filter-tabs {
+    display: flex; gap: 6px;
+    overflow-x: auto; padding: 10px 16px;
+    scrollbar-width: none; background: var(--cream);
+    flex-shrink: 0; border-bottom: 1px solid var(--border);
+  }
+  .filter-tabs::-webkit-scrollbar { display: none; }
+  .ftab {
+    flex-shrink: 0; padding: 5px 13px;
+    border-radius: 20px; font-size: 13px;
+    cursor: pointer; border: 1px solid var(--border-mid);
+    color: var(--text-mid); background: transparent;
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.15s; white-space: nowrap;
+  }
+  .ftab.active { background: var(--green); color: var(--cream); border-color: var(--green); }
+
+  /* ── LIST ── */
+  .list-area { flex: 1; overflow-y: auto; padding: 6px 0 100px; -webkit-overflow-scrolling: touch; }
+  .section-head {
+    padding: 10px 18px 4px;
+    font-size: 10px; font-weight: 500;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text-light);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .item-row {
+    display: flex; align-items: center; gap: 11px;
+    padding: 11px 18px; margin: 2px 10px;
+    border-radius: var(--radius-sm);
+    background: var(--warm-white);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: opacity 0.2s;
+    animation: slideIn 0.22s ease;
+  }
+  @keyframes slideIn { from{opacity:0;transform:translateY(-5px)} to{opacity:1;transform:translateY(0)} }
+  .item-row.done { opacity: 0.38; }
+  .item-row.done .item-name { text-decoration: line-through; }
+  .check-circle {
+    width: 24px; height: 24px; border-radius: 50%;
+    border: 1.5px solid var(--border-mid);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: all 0.15s;
+  }
+  .item-row.done .check-circle { background: var(--green-accent); border-color: var(--green-accent); }
+  .check-svg { display: none; }
+  .item-row.done .check-svg { display: block; }
+  .item-info { flex: 1; min-width: 0; }
+  .item-name { font-size: 15px; color: var(--text); }
+  .item-meta { font-size: 11px; color: var(--text-light); margin-top: 2px; display: flex; align-items: center; gap: 4px; }
+  .cat-dot { width: 5px; height: 5px; border-radius: 50%; display: inline-block; }
+  .who-av {
+    width: 22px; height: 22px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 500; flex-shrink: 0;
+  }
+  .pending-item { opacity: 0.5; }
+  .empty-state { text-align: center; padding: 56px 28px; color: var(--text-light); }
+  .empty-state .ei { font-size: 38px; margin-bottom: 10px; opacity: 0.45; }
+  .empty-state p { font-size: 14px; line-height: 1.5; }
+
+  /* ── BOTTOM BAR ── */
+  .bottom-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--warm-white);
+    border-top: 1px solid var(--border);
+    padding: 11px 14px calc(11px + env(safe-area-inset-bottom));
+    z-index: 100;
+  }
+  .add-row { display: flex; gap: 8px; align-items: center; }
+  .add-input {
+    flex: 1; height: 44px;
+    border: 1px solid var(--border-mid);
+    border-radius: 22px; padding: 0 16px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px; color: var(--text);
+    background: var(--cream); outline: none;
+    transition: border-color 0.15s;
+  }
+  .add-input:focus { border-color: var(--green-accent); }
+  .mic-btn {
+    width: 44px; height: 44px; border-radius: 50%;
+    border: 1px solid var(--border-mid);
+    background: var(--cream);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0; transition: all 0.15s;
+  }
+  .mic-btn.recording { background: var(--red-light); border-color: var(--red); animation: micPulse 1s ease-in-out infinite; }
+  @keyframes micPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.07)} }
+  .add-btn {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--green); border: none;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0;
+    transition: transform 0.1s, background 0.15s;
+  }
+  .add-btn:active { transform: scale(0.95); }
+
+  /* ── SHEETS & OVERLAYS ── */
+  .overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45); z-index: 200;
+    display: flex; align-items: flex-end;
+    animation: fadeIn 0.18s;
+  }
+  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+  .sheet {
+    background: var(--warm-white);
+    border-radius: 20px 20px 0 0;
+    width: 100%;
+    padding: 18px 18px calc(22px + env(safe-area-inset-bottom));
+    animation: slideUp 0.24s cubic-bezier(0.4,0,0.2,1);
+  }
+  @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+  .sheet-handle { width: 36px; height: 4px; background: var(--border-mid); border-radius: 2px; margin: 0 auto 16px; }
+  .sheet-title { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+  .sheet-sub { font-size: 13px; color: var(--text-mid); margin-bottom: 14px; }
+  .item-preview {
+    background: var(--cream); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 11px 13px;
+    font-size: 17px; font-family: 'Fraunces', serif;
+    color: var(--text); margin-bottom: 16px;
+  }
+  .cat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; margin-bottom: 16px; }
+  .cat-opt {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 4px;
+    padding: 9px 4px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    cursor: pointer; transition: all 0.15s;
+    background: var(--cream);
+  }
+  .cat-opt:active { transform: scale(0.96); }
+  .cat-opt.selected { border-color: var(--green-accent); background: var(--green-light); box-shadow: 0 0 0 1.5px var(--green-accent); }
+  .cat-opt .ico { font-size: 20px; }
+  .cat-opt .lbl { font-size: 10px; color: var(--text-mid); text-align: center; line-height: 1.2; }
+
+  /* ── LISTENING ── */
+  .listening-overlay {
+    position: fixed; inset: 0;
+    background: rgba(26,42,26,0.87); z-index: 300;
+    display: flex; align-items: center; justify-content: center;
+    animation: fadeIn 0.18s;
+  }
+  .listening-card {
+    background: var(--warm-white); border-radius: 22px;
+    padding: 32px 36px; text-align: center; max-width: 270px; width: 88%;
+  }
+  .mic-ring {
+    width: 68px; height: 68px; border-radius: 50%;
+    background: var(--red-light); border: 2px solid var(--red);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 14px;
+    animation: micPulse 1s ease-in-out infinite;
+  }
+  .wave-row { display: flex; justify-content: center; gap: 4px; margin: 12px 0; height: 34px; align-items: center; }
+  .wave-bar { width: 4px; background: var(--green-accent); border-radius: 2px; animation: waveAnim 0.6s ease-in-out infinite; }
+  .wave-bar:nth-child(2){animation-delay:.1s} .wave-bar:nth-child(3){animation-delay:.2s}
+  .wave-bar:nth-child(4){animation-delay:.3s} .wave-bar:nth-child(5){animation-delay:.4s}
+  @keyframes waveAnim { 0%,100%{height:6px;opacity:.35} 50%{height:30px;opacity:1} }
+  .transcript-text { font-family: 'Fraunces', serif; font-size: 19px; color: var(--text); min-height: 28px; margin: 6px 0; }
+  .listening-hint { font-size: 12px; color: var(--text-light); }
+
+  /* ── INVITE SHEET ── */
+  .invite-sheet-code {
+    font-family: 'Fraunces', serif; font-size: 44px; font-weight: 600;
+    color: var(--green); letter-spacing: 0.18em;
+    text-align: center; padding: 18px;
+    background: var(--green-light); border: 1.5px dashed var(--green-accent);
+    border-radius: var(--radius-sm); margin: 14px 0;
+  }
+  .copy-hint { font-size: 12px; color: var(--text-light); text-align: center; margin-top: 6px; }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; top: 56px; left: 10px; right: 10px;
+    background: var(--green); border-radius: var(--radius);
+    padding: 13px 14px; z-index: 500;
+    display: flex; align-items: flex-start; gap: 11px;
+    animation: toastIn 0.3s cubic-bezier(0.4,0,0.2,1);
+    cursor: pointer;
+  }
+  @keyframes toastIn { from{opacity:0;transform:translateY(-14px)} to{opacity:1;transform:translateY(0)} }
+  .toast-icon { width: 34px; height: 34px; border-radius: 50%; background: rgba(247,244,239,0.14); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 16px; }
+  .toast-body { flex: 1; }
+  .toast-store { font-size: 10px; color: rgba(247,244,239,0.55); margin-bottom: 2px; font-weight: 500; letter-spacing: 0.05em; }
+  .toast-msg { font-size: 14px; color: var(--cream); line-height: 1.4; }
+  .toast-msg strong { font-weight: 500; }
+  .toast-saving { font-size: 12px; color: #a8d8a8; margin-top: 3px; }
+
+  /* ── AVATAR COLOURS ── */
+  .av-0{background:#d4e8d4;color:#1a4a1a} .av-1{background:#d4dff0;color:#1a2a5a}
+  .av-2{background:#f0e8d4;color:#5a3a1a} .av-3{background:#ead4f0;color:#4a1a5a}
+  .av-4{background:#f0d4d4;color:#5a1a1a} .av-5{background:#d4f0ee;color:#1a4a47}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="screen active" id="screen-loading">
+  <div class="loading-logo">🛒 FamilyList</div>
+  <div class="loading-spinner"></div>
+  <div class="loading-msg" id="loading-msg">Connecting...</div>
+</div>
+
+<!-- ONBOARDING -->
+<div class="screen" id="screen-onboard">
+  <div style="text-align:center;margin-bottom:28px">
+    <div class="onboard-mark">🛒 FamilyList</div>
+    <div class="onboard-tagline">One list. Every member. Every deal.</div>
+  </div>
+  <div class="onboard-card">
+    <div class="tab-switcher">
+      <button class="tab-sw active" onclick="switchOnboard('create')">Create family</button>
+      <button class="tab-sw" onclick="switchOnboard('join')">Join family</button>
+    </div>
+
+    <!-- CREATE -->
+    <div class="onboard-section active" id="section-create">
+      <h2>New family group</h2>
+      <p>Create a shared list. Share the invite code with your family.</p>
+      <div class="field-label">Your name</div>
+      <input class="field-input" id="create-name" placeholder="e.g. Marie" />
+      <div class="field-label">Family name</div>
+      <input class="field-input" id="create-family" placeholder="e.g. The Martins" />
+      <button class="btn-primary" id="btn-create" onclick="createFamily()">Create &amp; get invite code</button>
+      <div class="error-msg" id="create-error"></div>
+    </div>
+
+    <!-- JOIN -->
+    <div class="onboard-section" id="section-join">
+      <h2>Join your family</h2>
+      <p>Enter the 6-letter code your family shared with you.</p>
+      <div class="field-label">Your name</div>
+      <input class="field-input" id="join-name" placeholder="e.g. Jean" />
+      <div class="field-label">Invite code</div>
+      <input class="field-input" id="join-code" placeholder="e.g. MART42" maxlength="6"
+        style="text-transform:uppercase;letter-spacing:0.15em;font-family:'Fraunces',serif;font-size:22px"
+        oninput="this.value=this.value.toUpperCase()" />
+      <button class="btn-primary" id="btn-join" onclick="joinFamily()">Join family list</button>
+      <div class="error-msg" id="join-error"></div>
+    </div>
+
+    <div class="or-divider">or</div>
+    <button class="btn-secondary" onclick="loadDemo()">Try with demo data</button>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div class="screen" id="screen-app">
+  <div class="app-header">
+    <div class="header-top">
+      <div>
+        <div style="font-size:10px;color:rgba(247,244,239,0.45);margin-bottom:2px;letter-spacing:.05em">SHOPPING LIST</div>
+        <div class="family-name" id="display-family-name">The Martins</div>
+      </div>
+      <div class="header-right">
+        <div class="members-row" id="members-row"></div>
+        <div class="synced-indicator">
+          <div class="sync-dot" id="sync-dot"></div>
+          <span id="sync-label">synced</span>
+        </div>
+      </div>
+    </div>
+    <div class="stats-row">
+      <div class="stat-pill"><strong id="stat-remaining">0</strong> to get</div>
+      <div class="stat-pill"><strong id="stat-done">0</strong> in basket</div>
+      <button class="invite-btn" onclick="showInviteSheet()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+        Invite
+      </button>
+    </div>
+  </div>
+
+  <div class="filter-tabs" id="filter-tabs"></div>
+  <div class="list-area" id="list-area"></div>
+
+  <div class="bottom-bar">
+    <div class="add-row">
+      <button class="mic-btn" id="mic-btn" onclick="startVoice()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-mid)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5 10a7 7 0 0014 0M12 19v3M8 22h8"/></svg>
+      </button>
+      <input class="add-input" id="add-input" placeholder="Add item..." />
+      <button class="add-btn" onclick="triggerAdd()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--cream)" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════
+// FIREBASE CONFIG
+// Replace with your own Firebase project config
+// Get this from: console.firebase.google.com
+// → Project Settings → Your apps → SDK setup
+// ════════════════════════════════════════
+const FIREBASE_CONFIG = {
+  apiKey:            "YOUR_API_KEY",
+  authDomain:        "YOUR_PROJECT.firebaseapp.com",
+  projectId:         "YOUR_PROJECT_ID",
+  storageBucket:     "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId:             "YOUR_APP_ID"
+};
+
+// ── CONSTANTS ──
+const CATS = [
+  { name:'Produce',    icon:'🥦', color:'#2d7a2d' },
+  { name:'Dairy',      icon:'🥛', color:'#2d5fa5' },
+  { name:'Dry Goods',  icon:'🌾', color:'#8c6020' },
+  { name:'Meat',       icon:'🥩', color:'#a53020' },
+  { name:'Frozen',     icon:'❄️', color:'#3060a5' },
+  { name:'Bakery',     icon:'🍞', color:'#a56020' },
+  { name:'Toiletries', icon:'🧴', color:'#7a3a8c' },
+  { name:'Other',      icon:'🛒', color:'#666'    },
+];
+
+const CAT_KEYWORDS = {
+  milk:'Dairy', yogurt:'Dairy', cheese:'Dairy', cream:'Dairy', butter:'Dairy', egg:'Dairy',
+  banana:'Produce', tomato:'Produce', spinach:'Produce', apple:'Produce', onion:'Produce',
+  potato:'Produce', carrot:'Produce', lettuce:'Produce', pepper:'Produce', cucumber:'Produce',
+  lemon:'Produce', orange:'Produce', garlic:'Produce', mushroom:'Produce', avocado:'Produce',
+  chicken:'Meat', beef:'Meat', pork:'Meat', salmon:'Meat', fish:'Meat', ham:'Meat', sausage:'Meat',
+  pasta:'Dry Goods', rice:'Dry Goods', oil:'Dry Goods', flour:'Dry Goods', sugar:'Dry Goods',
+  coffee:'Dry Goods', tea:'Dry Goods', cereal:'Dry Goods', bread:'Bakery', baguette:'Bakery',
+  croissant:'Bakery', cake:'Bakery',
+  shampoo:'Toiletries', soap:'Toiletries', toothpaste:'Toiletries', toilet:'Toiletries',
+  deodorant:'Toiletries',
+  frozen:'Frozen', 'ice cream':'Frozen',
+};
+
+const DEMO_ITEMS = [
+  { name:'Whole milk',      cat:'Dairy',      who:'Marie',  done:false },
+  { name:'Greek yogurt',    cat:'Dairy',      who:'Jean',   done:false },
+  { name:'Bananas',         cat:'Produce',    who:'Léa',    done:false },
+  { name:'Cherry tomatoes', cat:'Produce',    who:'Marie',  done:false },
+  { name:'Baby spinach',    cat:'Produce',    who:'Tom',    done:false },
+  { name:'Pasta',           cat:'Dry Goods',  who:'Jean',   done:false },
+  { name:'Olive oil',       cat:'Dry Goods',  who:'Marie',  done:true  },
+  { name:'Chicken breast',  cat:'Meat',       who:'Jean',   done:false },
+  { name:'Sourdough loaf',  cat:'Bakery',     who:'Marie',  done:false },
+  { name:'Shampoo',         cat:'Toiletries', who:'Tom',    done:false },
+];
+
+const STORE_SPECIALS = [
+  { item:'chicken breast', store:'Carrefour Market', discount:'30% off', saving:'€1.80' },
+  { item:'greek yogurt',   store:'Monoprix',         discount:'Buy 2 get 1', saving:'€2.10' },
+  { item:'baby spinach',   store:'Carrefour Market', discount:'25% off', saving:'€0.70' },
+  { item:'pasta',          store:'Intermarché',      discount:'−€0.80', saving:'€0.80' },
+];
+
+const VOICE_DEMOS = ['olive oil','chicken breast','Greek yogurt','toilet paper','baby spinach','sourdough bread'];
+
+// ── APP STATE ──
+let db = null;
+let unsubscribe = null;
+let isDemo = false;
+let demoItems = [];
+let demoMembers = [];
+let state = {
+  familyId: null,
+  familyName: '',
+  userName: '',
+  userId: null,
+  inviteCode: '',
+  activeFilter: 'all',
+  members: {},
+  items: [],
+};
+let voiceDemoIdx = 0;
+
+// ── BOOT ──
+window.addEventListener('load', boot);
+
+async function boot() {
+  setLoading('Connecting...');
+  // Check if config is real
+  if (FIREBASE_CONFIG.apiKey === 'YOUR_API_KEY') {
+    // No Firebase configured — go straight to onboard with demo option
+    setLoading('Ready');
+    showScreen('onboard');
+    return;
+  }
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.firestore();
+    db.enablePersistence().catch(() => {}); // offline support
+    // Check for saved session
+    const saved = localStorage.getItem('fl_session');
+    if (saved) {
+      const s = JSON.parse(saved);
+      state.familyId = s.familyId;
+      state.userName = s.userName;
+      state.userId   = s.userId;
+      setLoading('Loading your list...');
+      await loadFamily(state.familyId);
+    } else {
+      showScreen('onboard');
+    }
+  } catch (e) {
+    console.error(e);
+    showScreen('onboard');
+  }
+}
+
+function setLoading(msg) {
+  document.getElementById('loading-msg').textContent = msg;
+}
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+}
+
+// ── ONBOARDING TABS ──
+function switchOnboard(tab) {
+  document.querySelectorAll('.tab-sw').forEach((b, i) => b.classList.toggle('active', (i === 0) === (tab === 'create')));
+  document.getElementById('section-create').classList.toggle('active', tab === 'create');
+  document.getElementById('section-join').classList.toggle('active', tab === 'join');
+}
+
+// ── CREATE FAMILY ──
+async function createFamily() {
+  const name   = document.getElementById('create-name').value.trim();
+  const family = document.getElementById('create-family').value.trim();
+  const errEl  = document.getElementById('create-error');
+  errEl.style.display = 'none';
+  if (!name || !family) { showError(errEl, 'Please fill in both fields.'); return; }
+
+  const btn = document.getElementById('btn-create');
+  btn.disabled = true; btn.textContent = 'Creating...';
+
+  if (!db) { loadDemoWithNames(name, family); return; }
+
+  try {
+    const code    = genCode();
+    const userId  = genId();
+    const familyRef = await db.collection('families').add({
+      name: family,
+      inviteCode: code,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    await db.collection('families').doc(familyRef.id)
+      .collection('members').doc(userId).set({ name, joinedAt: firebase.firestore.FieldValue.serverTimestamp() });
+
+    state.familyId   = familyRef.id;
+    state.familyName = family;
+    state.userName   = name;
+    state.userId     = userId;
+    state.inviteCode = code;
+    saveSession();
+    await loadFamily(familyRef.id, true);
+  } catch (e) {
+    showError(errEl, 'Could not create family. Check your connection.');
+    btn.disabled = false; btn.textContent = 'Create & get invite code';
+  }
+}
+
+// ── JOIN FAMILY ──
+async function joinFamily() {
+  const name = document.getElementById('join-name').value.trim();
+  const code = document.getElementById('join-code').value.trim().toUpperCase();
+  const errEl = document.getElementById('join-error');
+  errEl.style.display = 'none';
+  if (!name || !code) { showError(errEl, 'Please fill in both fields.'); return; }
+  if (code.length !== 6) { showError(errEl, 'Invite code should be 6 characters.'); return; }
+
+  const btn = document.getElementById('btn-join');
+  btn.disabled = true; btn.textContent = 'Joining...';
+
+  if (!db) { showError(errEl, 'Firebase not configured. Use demo mode.'); btn.disabled = false; btn.textContent = 'Join family list'; return; }
+
+  try {
+    const snap = await db.collection('families').where('inviteCode', '==', code).limit(1).get();
+    if (snap.empty) { showError(errEl, 'Code not found. Check and try again.'); btn.disabled = false; btn.textContent = 'Join family list'; return; }
+
+    const familyDoc = snap.docs[0];
+    const userId = genId();
+    await familyDoc.ref.collection('members').doc(userId).set({ name, joinedAt: firebase.firestore.FieldValue.serverTimestamp() });
+
+    state.familyId   = familyDoc.id;
+    state.familyName = familyDoc.data().name;
+    state.userName   = name;
+    state.userId     = userId;
+    state.inviteCode = code;
+    saveSession();
+    await loadFamily(familyDoc.id);
+  } catch (e) {
+    showError(errEl, 'Something went wrong. Try again.');
+    btn.disabled = false; btn.textContent = 'Join family list';
+  }
+}
+
+// ── LOAD FAMILY & START REAL-TIME LISTENER ──
+async function loadFamily(familyId, justCreated = false) {
+  try {
+    const familyDoc = await db.collection('families').doc(familyId).get();
+    if (!familyDoc.exists) { localStorage.removeItem('fl_session'); showScreen('onboard'); return; }
+
+    const data = familyDoc.data();
+    state.familyName = data.name;
+    state.inviteCode = data.inviteCode;
+
+    const membersSnap = await db.collection('families').doc(familyId).collection('members').get();
+    state.members = {};
+    membersSnap.forEach(d => { state.members[d.id] = d.data().name; });
+
+    launchApp();
+    startListener(familyId);
+
+    if (justCreated) setTimeout(() => showInviteSheet(), 600);
+  } catch (e) {
+    setLoading('Offline — showing cached data');
+    launchApp();
+    startListener(familyId);
+  }
+}
+
+// ── REAL-TIME FIRESTORE LISTENER ──
+function startListener(familyId) {
+  if (unsubscribe) unsubscribe();
+  setSyncStatus('syncing');
+  unsubscribe = db.collection('families').doc(familyId)
+    .collection('items')
+    .orderBy('addedAt', 'desc')
+    .onSnapshot(snap => {
+      state.items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderList();
+      setSyncStatus('synced');
+    }, () => setSyncStatus('offline'));
+}
+
+// ── ADD ITEM TO FIRESTORE ──
+async function addItemToFirestore(name, cat) {
+  if (!db || isDemo) {
+    addDemoItem(name, cat); return;
+  }
+  try {
+    await db.collection('families').doc(state.familyId)
+      .collection('items').add({
+        name, cat,
+        who: state.userName,
+        done: false,
+        addedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+  } catch (e) {
+    // Offline — add locally and it'll sync when back online
+    addDemoItem(name, cat);
+  }
+}
+
+// ── TOGGLE ITEM DONE ──
+async function toggleItem(itemId, currentDone) {
+  if (isDemo) {
+    const item = state.items.find(i => i.id === itemId);
+    if (item) { item.done = !item.done; renderList(); }
+    return;
+  }
+  try {
+    await db.collection('families').doc(state.familyId)
+      .collection('items').doc(itemId).update({ done: !currentDone });
+  } catch (e) {
+    const item = state.items.find(i => i.id === itemId);
+    if (item) { item.done = !item.done; renderList(); }
+  }
+}
+
+// ── DEMO MODE ──
+function loadDemo() {
+  isDemo = true;
+  state.familyName = 'The Martins';
+  state.userName   = 'Marie';
+  state.userId     = 'demo';
+  state.inviteCode = 'MART42';
+  state.members    = { m0:'Marie', m1:'Jean', m2:'Léa', m3:'Tom' };
+  state.items = DEMO_ITEMS.map((item, i) => ({ id: 'demo_' + i, ...item }));
+  launchApp();
+  setTimeout(showStoreNotification, 3000);
+}
+
+function loadDemoWithNames(name, family) {
+  isDemo = true;
+  state.familyName = family;
+  state.userName   = name;
+  state.userId     = 'local';
+  state.inviteCode = genCode();
+  state.members    = { u0: name };
+  state.items      = [];
+  launchApp();
+  setTimeout(() => showInviteSheet(), 500);
+}
+
+function addDemoItem(name, cat) {
+  state.items.unshift({ id: 'local_' + Date.now(), name, cat, who: state.userName, done: false });
+  renderList();
+}
+
+// ── LAUNCH APP ──
+function launchApp() {
+  document.getElementById('display-family-name').textContent = state.familyName;
+  renderMembers();
+  buildFilterTabs();
+  setupInput();
+  renderList();
+  showScreen('app');
+  setSyncStatus(isDemo ? 'demo' : 'synced');
+}
+
+// ── MEMBERS ──
+function renderMembers() {
+  const names = Object.values(state.members).slice(0, 5);
+  document.getElementById('members-row').innerHTML = names.map((n, i) =>
+    `<div class="member-av av-${i % 6}" style="margin-left:${i===0?'0':'-7px'}">${n[0].toUpperCase()}</div>`
+  ).join('');
+}
+
+function memberColor(who) {
+  const names = Object.values(state.members);
+  const idx = names.indexOf(who);
+  return idx >= 0 ? idx % 6 : 0;
+}
+
+// ── FILTER TABS ──
+function buildFilterTabs() {
+  const el = document.getElementById('filter-tabs');
+  const tabs = [{ cat:'all', label:'All' }, ...CATS.map(c => ({ cat: c.name, label: c.icon + ' ' + c.name }))];
+  el.innerHTML = tabs.map(t =>
+    `<div class="ftab ${t.cat === 'all' ? 'active' : ''}" data-cat="${t.cat}">${t.label}</div>`
+  ).join('');
+  el.addEventListener('click', e => {
+    const tab = e.target.closest('.ftab');
+    if (!tab) return;
+    state.activeFilter = tab.dataset.cat;
+    el.querySelectorAll('.ftab').forEach(t => t.classList.toggle('active', t.dataset.cat === state.activeFilter));
+    renderList();
+  });
+}
+
+// ── RENDER LIST ──
+function renderList() {
+  const area = document.getElementById('list-area');
+  const filtered = state.activeFilter === 'all'
+    ? state.items
+    : state.items.filter(i => i.cat === state.activeFilter);
+
+  const groups = {};
+  CATS.forEach(c => { groups[c.name] = []; });
+  filtered.forEach(item => {
+    if (!groups[item.cat]) groups[item.cat] = [];
+    groups[item.cat].push(item);
+  });
+
+  let html = '';
+  CATS.forEach(c => {
+    if (!groups[c.name] || groups[c.name].length === 0) return;
+    html += `<div class="section-head"><span>${c.icon}</span>${c.name}</div>`;
+    groups[c.name].forEach(item => {
+      const ci = memberColor(item.who);
+      html += `
+        <div class="item-row ${item.done ? 'done' : ''}" data-id="${item.id}" data-done="${item.done}">
+          <div class="check-circle">
+            <svg class="check-svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div class="item-info">
+            <div class="item-name">${item.name}</div>
+            <div class="item-meta">
+              <span class="cat-dot" style="background:${c.color}"></span>
+              ${item.cat} · ${item.who}${item.done ? ' · in basket' : ''}
+            </div>
+          </div>
+          <div class="who-av av-${ci}">${(item.who || '?')[0].toUpperCase()}</div>
+        </div>`;
+    });
+  });
+
+  if (!html) {
+    html = `<div class="empty-state"><div class="ei">🛒</div><p>Nothing here yet.<br>Tap the mic or type to add.</p></div>`;
+  }
+
+  area.innerHTML = html;
+  area.querySelectorAll('.item-row').forEach(el => {
+    el.addEventListener('click', () => toggleItem(el.dataset.id, el.dataset.done === 'true'));
+  });
+
+  const remaining = state.items.filter(i => !i.done).length;
+  const done = state.items.filter(i => i.done).length;
+  document.getElementById('stat-remaining').textContent = remaining;
+  document.getElementById('stat-done').textContent = done;
+}
+
+// ── INPUT ──
+function setupInput() {
+  document.getElementById('add-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') triggerAdd();
+  });
+}
+
+function triggerAdd() {
+  const input = document.getElementById('add-input');
+  const val = input.value.trim();
+  if (!val) return;
+  input.value = '';
+  showCategorySheet(val);
+}
+
+function guessCategory(name) {
+  const low = name.toLowerCase();
+  for (const [key, cat] of Object.entries(CAT_KEYWORDS)) {
+    if (low.includes(key)) return cat;
+  }
+  return null;
+}
+
+function catMeta(name) {
+  return CATS.find(c => c.name === name) || CATS[CATS.length - 1];
+}
+
+// ── CATEGORY SHEET ──
+function showCategorySheet(itemName) {
+  const guessed = guessCategory(itemName);
+  let selected = guessed || 'Other';
+
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">Categorise item</div>
+      <div class="sheet-sub">Helps sort your list by store aisle</div>
+      <div class="item-preview">${itemName}</div>
+      <div class="cat-grid">
+        ${CATS.map(c => `
+          <div class="cat-opt ${c.name === guessed ? 'selected' : ''}" data-cat="${c.name}">
+            <span class="ico">${c.icon}</span>
+            <span class="lbl">${c.name}</span>
+          </div>`).join('')}
+      </div>
+      <button class="btn-primary" id="confirm-btn">Add to list</button>
+    </div>`;
+  document.body.appendChild(ov);
+
+  ov.querySelectorAll('.cat-opt').forEach(opt => {
+    opt.addEventListener('click', () => {
+      ov.querySelectorAll('.cat-opt').forEach(o => o.classList.remove('selected'));
+      opt.classList.add('selected');
+      selected = opt.dataset.cat;
+    });
+  });
+
+  document.getElementById('confirm-btn').addEventListener('click', () => {
+    document.body.removeChild(ov);
+    addItemToFirestore(itemName, selected);
+    // Reset filter to All
+    state.activeFilter = 'all';
+    document.querySelectorAll('.ftab').forEach(t => t.classList.toggle('active', t.dataset.cat === 'all'));
+  });
+
+  ov.addEventListener('click', e => { if (e.target === ov) document.body.removeChild(ov); });
+}
+
+// ── VOICE ──
+function startVoice() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (SR) {
+    const rec = new SR();
+    rec.continuous = false; rec.interimResults = true; rec.lang = 'en-US';
+    showListening('Listening...');
+    let finalText = '';
+    rec.onresult = e => {
+      finalText = Array.from(e.results).map(r => r[0].transcript).join('');
+      updateListeningText(finalText);
+    };
+    rec.onend = () => {
+      hideListening();
+      if (finalText) { document.getElementById('add-input').value = finalText; setTimeout(() => showCategorySheet(finalText), 120); }
+    };
+    rec.onerror = () => { hideListening(); runVoiceDemo(); };
+    rec.start();
+  } else {
+    runVoiceDemo();
+  }
+}
+
+function runVoiceDemo() {
+  const word = VOICE_DEMOS[voiceDemoIdx % VOICE_DEMOS.length];
+  voiceDemoIdx++;
+  showListening('Listening...');
+  [[400, word[0]+'...'], [900, word.split(' ')[0]], [1400, word]].forEach(([d, t]) => {
+    setTimeout(() => updateListeningText(t), d);
+  });
+  setTimeout(() => {
+    hideListening();
+    document.getElementById('add-input').value = word;
+    setTimeout(() => showCategorySheet(word), 120);
+  }, 2000);
+}
+
+function showListening(text) {
+  const ov = document.createElement('div');
+  ov.className = 'listening-overlay'; ov.id = 'listening-ov';
+  ov.innerHTML = `
+    <div class="listening-card">
+      <div class="mic-ring">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5 10a7 7 0 0014 0M12 19v3M8 22h8"/></svg>
+      </div>
+      <div class="wave-row"><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div></div>
+      <div class="transcript-text" id="transcript-display">${text}</div>
+      <div class="listening-hint">Tap to cancel</div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', hideListening);
+}
+function updateListeningText(t) { const el = document.getElementById('transcript-display'); if (el) el.textContent = t; }
+function hideListening() { const ov = document.getElementById('listening-ov'); if (ov) document.body.removeChild(ov); }
+
+// ── INVITE SHEET ──
+function showInviteSheet() {
+  const code = state.inviteCode || 'NOCODE';
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">Invite your family</div>
+      <div class="sheet-sub">Share this code. They enter it when they sign up.</div>
+      <div class="invite-sheet-code">${code}</div>
+      <div class="copy-hint">Tap the code to copy it</div>
+      <div style="margin-top:16px">
+        <button class="btn-primary" id="copy-btn" onclick="copyCode('${code}')">Copy invite code</button>
+      </div>
+      <div style="margin-top:10px">
+        <button class="btn-secondary" onclick="this.closest('.overlay').remove()">Done</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('.invite-sheet-code').addEventListener('click', () => copyCode(code));
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+function copyCode(code) {
+  navigator.clipboard?.writeText(code).then(() => showToast('Copied!', '✓', 'Code copied to clipboard', ''));
+}
+
+// ── SYNC STATUS ──
+function setSyncStatus(status) {
+  const dot = document.getElementById('sync-dot');
+  const label = document.getElementById('sync-label');
+  if (!dot) return;
+  const map = { synced:{color:'#6fcf6f',text:'synced'}, syncing:{color:'#f0c020',text:'syncing...'}, offline:{color:'#e07020',text:'offline'}, demo:{color:'#6fcf6f',text:'demo mode'} };
+  const s = map[status] || map.synced;
+  dot.style.background = s.color;
+  label.textContent = s.text;
+}
+
+// ── STORE NOTIFICATION ──
+function showStoreNotification() {
+  const active = state.items.filter(i => !i.done);
+  let match = null;
+  for (const sp of STORE_SPECIALS) {
+    const found = active.find(i => i.name.toLowerCase().includes(sp.item));
+    if (found) { match = { item: found, special: sp }; break; }
+  }
+  if (!match) match = { item: { name:'Chicken breast' }, special: STORE_SPECIALS[0] };
+  showToast(
+    match.special.store.toUpperCase() + ' · NEARBY NOW',
+    '🏪',
+    `<strong>${match.item.name}</strong> is on special — ${match.special.discount}`,
+    `It's on your list · Save ${match.special.saving} today`
+  );
+}
+
+function showToast(store, icon, msg, saving) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.innerHTML = `
+    <div class="toast-icon">${icon}</div>
+    <div class="toast-body">
+      <div class="toast-store">${store}</div>
+      <div class="toast-msg">${msg}</div>
+      ${saving ? `<div class="toast-saving">${saving}</div>` : ''}
+    </div>`;
+  document.body.appendChild(t);
+  t.addEventListener('click', () => t.remove());
+  setTimeout(() => { if (t.parentNode) t.remove(); }, 6000);
+}
+
+// Double-tap header to demo notification
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelector('.app-header')?.addEventListener('dblclick', showStoreNotification);
+});
+
+// ── HELPERS ──
+function genCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({length:6}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
+function genId() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+function saveSession() {
+  localStorage.setItem('fl_session', JSON.stringify({ familyId: state.familyId, userName: state.userName, userId: state.userId }));
+}
+function showError(el, msg) { el.textContent = msg; el.style.display = 'block'; }
+</script>
+</body>
+</html>
