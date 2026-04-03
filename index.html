@@ -616,7 +616,7 @@ function startVoice() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (SR) {
     const rec = new SR();
-    rec.continuous = false; rec.interimResults = true; rec.lang = 'en-US';
+    rec.continuous = false; rec.interimResults = true; rec.lang = 'en-ZA';
     showListening('Listening...');
     let finalText = '';
     rec.onresult = e => { finalText = Array.from(e.results).map(r => r[0].transcript).join(''); updateListeningText(finalText); };
